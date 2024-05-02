@@ -171,6 +171,10 @@ class ROM():
     MODEL_FF       = 0xFF
     MODEL_FE       = 0xFE
 
+    PRODUCT_C24_V1 = 0xD0
+    MODEL_D1       = 0xD1
+    MODEL_D2       = 0xD2
+
     ADDR_PRODUCT   = 0x00
     ADDR_MODEL     = 0x01
     ADDR_HW_REV    = 0x02
@@ -189,6 +193,7 @@ class ROM():
     INFO_LOCK_BYTE = 0x73
     CONF_OK_BYTE   = 0x73
 
+    BOARD_COMMANDO_24V1 = 0x52
     BOARD_RNODE         = 0x31
     BOARD_HMBRW         = 0x32
     BOARD_TBEAM         = 0x33
@@ -208,6 +213,7 @@ products = {
     ROM.PRODUCT_T32_21: "LilyGO LoRa32 v2.1",
     ROM.PRODUCT_H32_V2: "Heltec LoRa32 v2",
     ROM.PRODUCT_H32_V3: "Heltec LoRa32 v3",
+    ROM.PRODUCT_C24_V1: "Commando RNode 2.4Ghz V1"
 }
 
 platforms = {
@@ -248,6 +254,8 @@ models = {
     0xE9: [850000000, 950000000, 17, "850 - 950 MHz", "rnode_firmware_tbeam.zip", "SX1276"],
     0xE3: [420000000, 520000000, 22, "420 - 520 MHz", "rnode_firmware_tbeam_sx1262.zip", "SX1268"],
     0xE8: [850000000, 950000000, 22, "850 - 950 MHz", "rnode_firmware_tbeam_sx1262.zip", "SX1262"],
+    0xD1: [240000000, 2500000000, 12.5, "2400 - 2500 MHz", "rnode_firmware_commando_24v1.zip", "SX1280"],
+    0xD2: [2400000000, 2500000000, 27, "2400 - 2500 Mhz", "rnode_firmware_commando_24v1.zip", "SX1280"],
     0xFE: [100000000, 1100000000, 17, "(Band capabilities unknown)", None, "Unknown"],
     0xFF: [100000000, 1100000000, 14, "(Band capabilities unknown)", None, "Unknown"],
 }
@@ -1561,6 +1569,7 @@ def main():
             print("[7] Heltec LoRa32 v2")
             print("[8] Heltec LoRa32 v3")
             print("[9] LilyGO LoRa T3S3")
+            print("[10] Commando RNode 2.4Ghz V1")
             print("       .")
             print("      / \\   Select one of these options if you want to easily turn")
             print("       |    a supported development board into an RNode.")
@@ -1685,6 +1694,19 @@ def main():
                     print("")
                     print("Please note that Bluetooth is currently not implemented on this board.")
                     print("")
+                    print("The currently supplied firmware is provided AS-IS as a courtesey to those")
+                    print("who would like to experiment with it. Hit enter to continue.")
+                    print("---------------------------------------------------------------------------")
+                    input()
+                elif c_dev == 10:
+                    selected_product = ROM.PRODUCT_C24_V1
+                    clear()
+                    print("")
+                    print("---------------------------------------------------------------------------")
+                    print("                        Commando RNode 2.4Ghz Installer")
+                    print("")
+                    print("Important! Using RNode firmware on Commando RNode 2.4Ghz devices should currently be")
+                    print("considered experimental. It is not intended for production or critical use.")
                     print("The currently supplied firmware is provided AS-IS as a courtesey to those")
                     print("who would like to experiment with it. Hit enter to continue.")
                     print("---------------------------------------------------------------------------")
@@ -1949,6 +1971,24 @@ def main():
                 except Exception as e:
                     print("That band does not exist, exiting now.")
                     exit()
+
+            elif selected_product == ROM.PRODUCT_C24_V1:
+                if not c_mod:
+                    selected_mcu = ROM.MCU_ESP32
+                    print("\nWhat model is this Commando RNode 2.4Ghz?\n")
+                    print("[1] Commando RNode 2.4Ghz V1 (500mw)")
+                    print("\n? ", end="")
+                    try:
+                        c_model = int(input())
+                        if c_model < 1 or c_model > 1:
+                            raise ValueError()
+                        elif c_model == 1:
+                            selected_model = ROM.MODEL_D2
+                            selected_mcu = ROM.MCU_ESP32
+                            selected_platform = ROM.PLATFORM_ESP32
+                    except Exception as e:
+                        print("That model does not exist, exiting now.")
+                        exit()
 
             elif selected_product == ROM.PRODUCT_H32_V3:
                 selected_mcu = ROM.MCU_ESP32
@@ -2530,6 +2570,42 @@ def main():
                                 "0x210000",UPD_DIR+"/"+selected_version+"/console_image.bin",
                                 "0x8000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_esp32_generic.partitions",
                             ]
+                    elif fw_filename == "rnode_firmware_commando_24v1.zip":
+                        if numeric_version >= 1.55:
+                            return [
+                                sys.executable, flasher,
+                                "--chip", "esp32",
+                                "--port", args.port,
+                                "--baud", args.baud_flash,
+                                "--before", "default_reset",
+                                "--after", "hard_reset",
+                                "write_flash", "-z",
+                                "--flash_mode", "dio",
+                                "--flash_freq", "80m",
+                                "--flash_size", "4MB",
+                                "0xe000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.boot_app0",
+                                "0x1000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.bootloader",
+                                "0x10000", UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.bin",
+                                "0x210000",UPD_DIR+"/"+selected_version+"/console_image.bin",
+                                "0x8000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.partitions",
+                            ]
+                        else:
+                            return [
+                                sys.executable, flasher,
+                                "--chip", "esp32",
+                                "--port", args.port,
+                                "--baud", args.baud_flash,
+                                "--before", "default_reset",
+                                "--after", "hard_reset",
+                                "write_flash", "-z",
+                                "--flash_mode", "dio",
+                                "--flash_freq", "80m",
+                                "--flash_size", "4MB",
+                                "0xe000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.boot_app0",
+                                "0x1000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.bootloader",
+                                "0x10000", UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.bin",
+                                "0x8000",  UPD_DIR+"/"+selected_version+"/rnode_firmware_commando_24v1.partitions",
+                            ]
                         else:
                             return [
                                 sys.executable, flasher,
@@ -3102,6 +3178,8 @@ def main():
                             mapped_product = ROM.PRODUCT_HMBRW
                         elif args.product == "e0":
                             mapped_product = ROM.PRODUCT_TBEAM
+                        elif args.product == "d0":
+                            mapped_product = ROM.PRODUCT_C24_V1
                         else:
                             if len(args.product) == 2:
                                 mapped_product = ord(bytes.fromhex(args.product))
@@ -3128,6 +3206,10 @@ def main():
                             model = ROM.MODEL_E9
                         elif args.model == "ff":
                             model = ROM.MODEL_FF
+                        elif args.model == "d1":
+                            model = ROM.MODEL_D1
+                        elif args.model == "d2":
+                            model = ROM.MODEL_D2
                         else:
                             if len(args.model) == 2:
                                 model = ord(bytes.fromhex(args.model))
